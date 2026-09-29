@@ -3,8 +3,17 @@
 
 #include <stdio.h>
 
-int main(void){
-   
+
+
+void glfw_error_callback(int code,const char* description){
+  fprintf(stderr, "GLFW ERROR: Code %i Message %s\n", code, description);
+}
+
+int main(){
+
+  printf("Starting GLFW: Version %s\n", glfwGetVersionString());
+  glfwSetErrorCallback(glfw_error_callback);
+
   /* WINDOW SETUP */
     if(!glfwInit()){
         fprintf(stderr, "ERROR: Could not start GLFW.\n");
@@ -15,6 +24,8 @@ int main(void){
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    glfwWindowHint(GLFW_SAMPLES, 16);
 
     GLFWwindow* window = glfwCreateWindow(800,600,"Hello World",NULL,NULL);
     if (!window){
@@ -40,7 +51,7 @@ int main(void){
     float points[] = {
         0.0f, 0.5f, 0.0f,
         0.5f, -0.5f, 0.0f,
-        -0.5f, -0.5f, 0.0
+        -0.5f, -0.5f, 0.0f
     };
 
 
@@ -67,7 +78,7 @@ int main(void){
     const char* fragment_shader=
     "#version 410 core\n"
     "out vec4 frag_colour;"
-    "void int main () {"
+    "void main() {"
     "frag_colour=vec4(.5,0.0,.5,1.0);"
     "}";
 
@@ -83,8 +94,42 @@ int main(void){
     glAttachShader(shader_program, vs);
     glLinkProgram(shader_program);
 
+
+    double prev_time=glfwGetTime();
+    double title_ctd_time=0.1;
     /* DRAWING ON SCREEN */ 
-    
+    while(!glfwWindowShouldClose(window)){
+      glfwPollEvents();
+      // RESIZING INFO GOES HERE 
+
+      double curr_time = glfwGetTime();
+      double elapsed_time = prev_time - curr_time;
+      prev_time = curr_time;
+
+      title_ctd_time -= elapsed_time;
+      if (title_ctd_time<=0.0 && elapsed_time >0.0){
+        double fps = 1/elapsed_time;
+        char tmp[256];
+        sprintf(tmp, "FPS %.2lf", fps);
+
+        glfwSetWindowTitle(window, tmp);
+        title_ctd_time = 0.1;
+
+      }
+
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+      glUseProgram(shader_program);
+      glBindVertexArray(vao);
+
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+      glfwSwapBuffers(window);
+
+
+      if (GLFW_PRESS==glfwGetKey(window, GLFW_KEY_ESCAPE)){
+        glfwSetWindowShouldClose(window, 1); 
+      }
+
+    } 
 
 
     glfwTerminate();
