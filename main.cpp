@@ -69,7 +69,7 @@ int main(void){
     "out vec4 frag_colour;"
     "void int main () {"
     "frag_colour=vec4(.5,0.0,.5,1.0);"
-    "}"
+    "}";
 
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vs, 1, &vertex_shader, NULL);
