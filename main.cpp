@@ -1,21 +1,26 @@
+/* Compile commands:
+ *
+ * Windows:
+ * Linux: gcc main.cpp glad/src/gl.c -I ./glad/include -lglfw -lGL 
+ *
+ */
 
+
+#include <GL/gl.h>
+#include <cassert>
 #include <stdio.h>
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
+#define MAX_SHADER_SIZE = 100000
 
+bool create_program(){
+    /*
+    printf("Starting GLFW: Version %s\n", glfwGetVersionString());
+    glfwSetErrorCallback(glfw_error_callback);
+    */
 
-
-void glfw_error_callback(int code,const char* description){
-  fprintf(stderr, "GLFW ERROR: Code %i Message %s\n", code, description);
-}
-
-int main(){
-
-  printf("Starting GLFW: Version %s\n", glfwGetVersionString());
-  glfwSetErrorCallback(glfw_error_callback);
-
-  /* WINDOW SETUP */
+      /* WINDOW SETUP */
     if(!glfwInit()){
         fprintf(stderr, "ERROR: Could not start GLFW.\n");
         return 1;
@@ -59,18 +64,28 @@ int main(){
         return 1;
     }
 
-    printf("LOADED OPENGL %i.%i\n", GLAD_VERSION_MAJOR(glad_ver), GLAD_VERSION_MINOR(glad_ver));
+    printf("LOADED OPENGL %i.%i\n", GLAD_VERSION_MAJOR(glad_ver), 
+            GLAD_VERSION_MINOR(glad_ver));
 
     printf("Renderer: %s.\n", glGetString(GL_RENDERER));
     printf("OpenGL version supported %s.\n", glGetString(GL_VERSION));
 
+
+}
+
+void close_program(){
+    glfwTerminate();
+    printf("Program closed.");
+}
+
+void create_geometry(){
+    
     float points[] = {
         0.0f, 0.5f, 0.0f,
         0.5f, -0.5f, 0.0f,
         -0.5f, -0.5f, 0.0f
     };
-
-    /* CREATING SHADERS */
+   /* CREATING SHADERS */
     GLuint vbo = 0;
     glGenBuffers( 1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -83,6 +98,19 @@ int main(){
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 
+}
+
+GLuint shader_program_from_string(
+        const char* str_frag_shader, const char* str_vert_shader);
+GLuint shader_program_from_file(
+        const char* filename_frag_shader, const char* filename_vert_shader);
+
+
+GLuint shader_program_from_string(const char* str_frag_shader,
+        const char* str_vert_shader){
+
+    assert(str_vert_shader && str_frag_shader);
+    /**
     const char* vertex_shader=
     "#version 410 core\n"
     "in vec3 vp;"
@@ -96,9 +124,10 @@ int main(){
     "void main() {"
     "frag_colour=vec4(.5,0.0,.5,1.0);"
     "}";
+    **/
 
     GLuint vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vs, 1, &vertex_shader, NULL);
+    glShaderSource(vs, 1, &str_vert_shader, NULL);
     glCompileShader(vs);
 
     int params = -1;
@@ -112,7 +141,7 @@ int main(){
     }
 
     GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fs, 1, &fragment_shader, NULL);
+    glShaderSource(fs, 1, &str_frag_shader, NULL);
     glCompileShader(fs);
     glGetShaderiv(fs, GL_COMPILE_STATUS, &params);
     if (GL_TRUE != params)
@@ -140,6 +169,73 @@ int main(){
         char plog[2048];
         glGetShaderInfoLog(shader_program, max_length, &actual_length, plog);
         fprintf(stderr, "ERROR: Could not link shader program index %u.\n%s\n", shader_program, plog);
+        return 1;
+    }
+    
+    return shader_program;
+
+}
+
+GLuint shader_program_from_file (const char* filename_frag_shader,
+        const char* filename_vert_shader){
+    assert(filename_vert_shader && filename_frag_shader);
+
+    printf("Loading shader files from frag:%s, vert:%s\n", filename_frag_shader, filename_vert_shader);
+
+    char str_vs_shader[MAX_SHADER_SIZE];
+    char str_fs_shader[MAX_SHADER_SIZE];
+
+    str_vs_shader[0]=str_fs_shader[0]='\0';
+
+    {
+    FILE* fp= fopen(filename_vert_shader, "r");
+    if (!fp){
+        fprintf(stderr, "ERROR: Could not open vertex shader file%s\n", filename_vert_shader);
+        return 0;
+    }
+    size_t count = fread(str_vs_shader, 1, MAX_SHADER_SIZE-1, fp);
+    assert(count < MAX_SHADER_SIZE - 1);
+    str_vs_shader[count] = '\0';
+    fclose(fp)
+    }
+    {
+        FILE* fp=fopen(filename_frag_shader, "r");
+        if (!fp){
+            fprintf(stderr, "ERROR: Could not open fragment shader file %s\n", filename_frag_shader);
+        }
+        size_t count = fread(str_fs_shader, 1, MAX_SHADER_FILE-1, fp);
+        assert(count < MAX_SHADER_SIZE-1);
+        str_fs_shader[count]='\0';
+        fclose(fp);
+    }
+    return shader_program_from_string(str_vs_shader, str_fs_shader);
+}
+
+void reload_shader_program(GLuint* program, const char* filename_vert_shader, const char* filename_frag_shader){
+    assert(program && filename_frag_shader && filename_vert_shader);
+
+    GLuint reloaded_program = shader_program_from_file(filename_vert_shader, filename_frag_shader);
+
+    if(reloaded_program){
+        glDeleteProgram(*program);
+        *program = reloaded_program;
+    }
+}
+
+void glfw_error_callback(int code,const char* description){
+  fprintf(stderr, "GLFW ERROR: Code %i Message %s\n", code, description);
+}
+
+int main( void){
+
+    if (!create_program()){return 1;}
+
+    create_geometry();
+
+    //shader_program_from_string
+    shader_program = shader_program_from_file("shader.vert", "shader.frag");
+    if (!shader_program){
+        close_program();
         return 1;
     }
 
@@ -178,9 +274,16 @@ int main(){
         if (GLFW_PRESS==glfwGetKey(window, GLFW_KEY_ESCAPE)){
             glfwSetWindowShouldClose(window, 1); 
         }
+
+        static bool reload_key_pressed = false;
+        bool down = glfwGetKey(window , GLFW_KEY_R);
+        if (!down && reload_key_pressed){
+            reload_key_pressed = false;
+           reload_shader_program(&shader_program, "shader.vert", "shader.frag");
+        }
     } 
 
-    glfwTerminate();
+    close_program();
     return 0;
 }
 
